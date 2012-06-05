@@ -370,9 +370,10 @@ ipfw_main(int oldac, char **oldav)
 		if (ac > 1 && isdigit(av[1][0])) {
 			co.use_set = strtonum(av[1], 0, resvd_set_number,
 					&errstr);
-			if (errstr)
+			if (co.use_set == 0 && errno == EINVAL) {
 				errx(EX_DATAERR,
 				    "invalid set number %s\n", av[1]);
+			}
 			ac -= 2; av += 2; co.use_set++;
 		}
 	}
