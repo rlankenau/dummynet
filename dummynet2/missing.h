@@ -481,9 +481,10 @@ struct sock *tcp_v4_lookup(u32 saddr, u16 sport, u32 daddr, u16 dport, int dif);
 	//module_param(_name, _ty, 0644)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 typedef unsigned long uintptr_t;
 
+#if !defined(__LP64__)
 #ifdef MIPSEL
 static inline unsigned long __fls (unsigned long word)
 {
@@ -498,8 +499,9 @@ static inline unsigned long __fls(unsigned long word)
         return word;
 }
 #endif
+#endif /* !__LP64__ */
 
-#endif /* LINUX < 2.6.25 */
+#endif /* LINUX < 2.6.24 */
 
 #endif /* !_WIN32 so maybe __linux__ */
 
