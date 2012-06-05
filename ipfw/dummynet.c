@@ -1167,24 +1167,24 @@ end_mask:
 		/* XXX accept a 0 scheduler to keep the default */
     if (fs->flags & DN_QSIZE_BYTES) {
 	size_t len;
-		long limit;
+		int limit;
 
 		len = sizeof(limit);
 		if (sysctlbyname("net.inet.ip.dummynet.pipe_byte_limit",
 			&limit, &len, NULL, 0) == -1)
 			limit = 1024*1024;
 		if (fs->qsize > limit)
-			errx(EX_DATAERR, "queue size must be < %ldB", limit);
+			errx(EX_DATAERR, "queue size must be < %dB", limit);
 	    } else {
 		size_t len;
-		long limit;
+		int limit;
 
 		len = sizeof(limit);
 		if (sysctlbyname("net.inet.ip.dummynet.pipe_slot_limit",
 			&limit, &len, NULL, 0) == -1)
 			limit = 100;
 		if (fs->qsize > limit)
-			errx(EX_DATAERR, "2 <= queue size <= %ld", limit);
+			errx(EX_DATAERR, "2 <= queue size <= %d", limit);
 	    }
 
 	    if (fs->flags & DN_IS_RED) {
