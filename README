@@ -1,0 +1,387 @@
+#
+# $Id: README 5355 2010-02-18 18:58:43Z luigi $
+#
+
+This directory contains a port of ipfw and dummynet to Linux/OpenWrt
+(including PlanetLab) and Windows. This version of ipfw and dummynet
+is called "ipfw3" as it is the third major rewrite of the code.
+The source code here comes straight from FreeBSD (roughly the
+version in HEAD as of February 2010), plus some glue code
+and headers written from scratch.
+Unless specified otherwise, all the code here is under a BSD license.
+
+Specific build instructions are below, and in general produce
+
+	a kernel module,	ipfw_mod.ko (ipfw_mod.sys on windows)
+	a userland program,	/sbin/ipfw (ipfw.exe on windows)
+
+which you need to install on your system.
+
+CREDITS:
+    Luigi Rizzo (main design and development)
+    Marta Carbone (Linux and Planetlab ports)
+    Riccardo Panicucci (modular scheduler support)
+    Francesco Magno (Windows port)
+    Fabio Checconi (the QFQ scheduler)
+    Funding from Universita` di Pisa and the ONELAB2 project
+    
+=========== INSTALL/REMOVE INSTRUCTIONS ========================
+
+FreeBSD, OSX:
+    INSTALL:
+	kldload ipfw.ko ; kldload dummynet.ko 
+    REMOVE:
+	kldunload dummynet.ko; kldunload ipfw.ko
+
+Linux
+    INSTALL:
+	# insmod need the full path (/lib/modules/*/net/netfilter/ipfw_mod.ko)
+	# Do the following as root
+	insmod ./dummynet2/ipfw_mod.ko
+	cp ipfw/ipfw /usr/local/sbin
+    REMOVE:
+	rmmod ipfw_mod.ko
+
+OpenWRT
+    INSTALL:	# use the correct name for your system
+	opkg install  kmod-ipfw3_2.4.35.4-brcm-2.4-1_mipsel.ipk #install
+	ls -l ls -l /lib/modules/2.4.35.4/ipfw*     # check
+	insmod /lib/modules/2.4.35.4/ipfw_mod.o     # load the module
+	/lib/modules/2.4.35.4/ipfw show             # launch the userspace tool
+    REMOVE:
+	rmmod ipfw_mod.o                            # remove the module
+
+Windows:
+    INSTALL THE NDIS DRIVER
+
+	- open the configuration panel for the network card in use
+	  (right click on the icon on the SYSTRAY, or go to
+	  Control Panel -> Network and select one card)
+
+	- click on Properties->Install->Service->Add
+	- click on 'Driver Disk' and select 'netipfw.inf' in this folder
+	- select 'ipfw+dummynet' which is the only service you should see
+	- click accept on the warnings for the installation of an unknown
+	  driver (roughly twice per existing network card)
+
+	Now you are ready to use the emulator. To configure it, open a 'cmd'
+	window and you can use the ipfw command from the command line.
+	Otherwise click on the 'TESTME.bat' which is a batch program that
+	runs various tests.
+
+    REMOVE:
+	- select a network card as above.
+	- click on Properties
+	- select 'ipfw+dummynet'
+	- click on 'Remove'
+
+
+=================== BUILD INSTRUCTIONS ==========================
+
+***** Windows XP ******
+    You can find a pre-built version in the binary/ subdirectory.
+    To build your own version of the package you need:
+	- MSVC DDK available from ...
+	    http://www.microsoft.com/whdc/DevTools/WDK/WDKpkg.mspx
+
+	- optionally, DbgView if you want to see diagnostic
+	    http://technet.microsoft.com/en-us/sysinternals/bb896647.aspx
+
+	- cygwin, http://www.cygwin.com/
+	  with base packages, make, c compiler, possibly an editor
+	  and subversion.
+
+    Open a shell from cygwin, move to this directory, and simply
+    run "make". The output of the build will be in this
+    directory, made of 4 files:
+	ipfw.exe (you also need cygwin.dll)
+	ipfw.sys (an NDIS intermediate filter driver)
+	dummynet.inf and dummynet_m.inf (installer files)
+
+    ---- INSTALL INSTRUCTION ---
+
+
+
+
+***** Linux 2.6.x ******
+
+	make KERNELPATH=/path/to/linux USRDIR=/path/to/usr
+
+    where the two variables are optional an point to the linux kernel
+    sources and the /usr directory. Defaults are USRDIR=/usr and
+    KERNELPATH=/lib/modules/`uname -r`/build 	--- XXX check ?
+
+    NOTE: make sure CONFIG_NETFILTER is enabled in the kernel
+    configuration file. You need the ncurses devel library,
+    that can be installed according your distro with:
+	apt-get install ncurses-dev	# for debian based distro
+	yum -y install ncurses-dev	# for fedora based distro
+    You can enable CONFIG_NETFILTER by doingdevel:
+    
+	"(cd ${KERNELPATH}; make menuconfig)"
+
+    and enabling the option listed below:
+
+        Networking --->
+	    Networking options  --->
+              [*] Network packet filtering framework (Netfilter)
+
+    If you have not yet compiled your kernel source, you need to
+    prepare the build environment:
+
+	(cd $(KERNELPATH); make oldconfig; make prepare; make scripts)
+
+***** Linux 2.4.x *****
+
+    Almost as above, with an additional VER=2.4
+
+	make VER=2.4 KERNELPATH=...
+
+    For 2.4, if KERNELPATH is not specified then we use
+    	KERNELPATH ?= /usr/src/`uname -r`/build
+
+    You need to follow the same instruction for the 2.6 kernel, enabling
+    netfilter in the kernel options:
+
+    Networking options  --->
+      [*] Network packet filtering (replaces ipchains)
+
+***** Openwrt package *****
+
+    (Tested with kamikaze_8.09.1 and Linux 2.4)
+
+    + Download and extract the OpenWrt package, e.g.
+
+	wget http://downloads.openwrt.org/kamikaze/8.09.1/kamikaze_8.09.1_source.tar.bz2
+	tar xvjf kamikaze_8.09.1_source.tar.bz2
+
+    + move to the directory with the OpenWrt sources (the one that
+      contains Config.in, rules.mk ...)
+
+	cd kamikaze_8.09.1
+
+    + Optional: to be sure that the tools are working, make a first
+      build as follows:
+
+	- run "make menuconfig" and set the correct target device,
+	  drivers, and so on;
+	- run "make" to do the build
+
+    + Add ipfw3 to the openwrt package, as follows:
+
+      - copy the code from this directory to the place used for the build:
+
+		cp -Rp /path_to_ipfw3 ../ipfw3; 
+
+	If you want, you can fetch a newer version from the web
+	(cd ..; rm -rf ipfw3; \
+	wget http://info.iet.unipi.it/~luigi/dummynet/ipfw3-latest.tgz;\
+	tar xvzf ipfw3-latest.tgz)
+
+      - run the following commands:
+	(mkdir package/ipfw3; \
+	cp ../ipfw3/Makefile.openwrt package/ipfw3/Makefile)
+
+	to create the package/ipfw3 directory in the OpenWrt source
+	directory, and copy Makefile.openwrt to package/ipfw3/Makefile ;
+
+      - if necessary, edit package/ipfw3/Makefile and set IPFW_DIR to point to
+	the directory ipfw3, which contains the sources;
+
+      - run "make menuconfig" and select kmod-ipfw3 as a module <M> in
+	    Kernel Modules -> Other modules -> kmod-ipfw3 
+
+      - run "make" to build the package, "make V=99" for verbose build.
+
+      - to modify the code, assuming you are in directory "kamikaze_8.09.1"
+	
+	(cd ../ipfw3 && vi ...the files you are interested in )
+	rm -rf build_dir/linux-brcm-2.4/kmod-ipfw3
+	make package/ipfw3/compile V=99
+
+    The resulting package is located in bin/packages/mipsel/kmod-ipfw3*,
+    upload the file and install on the target system, as follows:
+
+    opkg install  kmod-ipfw3_2.4.35.4-brcm-2.4-1_mipsel.ipk #install
+    ls -l ls -l /lib/modules/2.4.35.4/ipfw*     # check
+    insmod /lib/modules/2.4.35.4/ipfw_mod.o     # load the module
+    /lib/modules/2.4.35.4/ipfw show             # launch the userspace tool
+    rmmod ipfw_mod.o                            # remove the module
+
+***** PLANETLAB BUILD (within a slice) *****
+These instruction can be used by PlanetLab developers to compile
+the dummynet module on a node. To install the module on the node
+users need root access in root context.  PlanetLab users that want
+to use the dummynet package should ask to PlanetLab support for
+nodes with dummynet emulation capabilities.
+
+    Follow the instructions below. You can just cut&paste
+
+	# install the various tools if not available
+	sudo yum -y install subversion rpm-build rpm-devel m4 redhat-rpm-config make gcc
+	# new build installation requires the gnupg package
+	sudo yum -y install gnupg
+
+	# create and move to a work directory
+	mkdir -p test
+	# extract a planetlab distribution to directory XYZ
+	(cd test; svn co http://svn.planet-lab.org/svn/build/trunk XYZ)
+	# copy the planetlab/*mk files here, overriding existing ones
+	cp planetlab/*mk test/XYZ
+	# download the specfiles and do some patching.
+	# Results are into SPEC/ (takes 5 minutes)
+	(cd test/XYZ; make stage1=true PLDISTRO=planetlab )
+	# Building the slice code is fast, the root code takes longer
+	# as it needs to rebuild the whole kernel
+	(cd test/XYZ; sudo make ipfwslice ipfwroot)
+
+    The kernel dependency phase is a bit time consuming, but does not
+    need to be redone if we are changing the ipfw sources only.
+    To clean up the code do
+	(cd test/XYZ; sudo make ipfwroot-clean ipfwslice-clean)
+    then after you have updated the repository again
+	(cd test/XYZ; sudo make ipfwslice ipfwroot)
+
+--- other, instructions (to be verified) ---
+
+To build a kernel module for the PlanetLab distribution you need a
+build system.  For an up-to-date and detailed information on how
+to build a local myplc installation, a local mirror, a PlanetLab
+test system see[1]
+
+To create a build system you need to do the following steps:
+
+ 1. install CentOS 5, detailed information[2]
+
+ 1.A download the image from the main site[3] for example:
+
+	wget http://mi.mirror.garr.it/mirrors/CentOS/5.4/isos/i386/CentOS-5.4-i386-netinstall.iso
+
+ 1.B Add the repository
+
+	cat >> /etc/yum.repos.d/dhozac-vserver.repo <<EOF
+	[dhozac-vserver]
+name=Linux-VServer related packages for CentOS $releasever - $basearch
+baseurl=http://rpm.hozac.com/dhozac/centos/$releasever/vserver/$basearch
+gpgkey=http://rpm.hozac.com/conf/keys/RPM-DHOZAC-GPG-KEY
+EOF
+
+ 1.C Update, install and config the system
+
+	yum update yum
+	yum install kernel
+	yum install util-vserver{,-core,-lib,-sysv,-build}
+	yum install vim
+	yum install subversion
+	/etc/init.d/vprocunhide start
+	chkconfig vservers-default on
+
+ 2. create a vserver
+
+ 2.A Checkout the planetlab build
+
+	cd
+	svn co http://svn.planet-lab.org/svn/build/trunk svn-build
+
+ 2.B Search for a working RPM distribution in:
+
+	http://build.onelab.eu/onelab/
+	# good distribution ends in .ok, bad in .ko
+	# in this example we used the following:
+	http://build.onelab.eu/onelab/2008.03.02--onelab-f8-linux32/RPMS/
+
+ 2.C Creating a vserver
+
+	cd ~/svn-build
+	./vtest-init-vserver.sh -f f8 -d onelab -p linux32 mybuild \
+	  http://build.onelab.eu/onelab/2008.03.02--onelab-f8-linux32/RPMS/ \
+	  -- --interface eth0:138.96.255.221 --hostname vnode01.inria.fr &> mybuild.log&
+
+ 3. create the build
+
+ 3.A Enter on the vserver, and create the build
+
+	vserver mybuild enter
+	cd \
+	svn co http://svn.planet-lab.org/svn/build/trunk build
+
+ 4. build
+
+ 4.A build[4]
+	cd /build
+
+	# full cleanup
+	make distclean
+
+	# the compilation is composed by several steps,
+	# make help for more information
+	# the first for the onelab compilation will download
+	# the SPEC file from the repository specified in
+	# onelab-tags.mk
+	make stage1=true PLDISTRO=onelab
+
+	# to download and build a module, for example ipfw:
+	make ipfw
+
+	# to do local changes
+	cd /build/CODEBASE
+	rm -rf ipfw
+	# download the ipfw sources and extract it into ./ipfw
+	# by svn
+	svn+ssh://onelab2.iet.unipi.it/home/svn/ports-luigi/dummynet-branches/ipfw_mod ./ipfw
+	# from web
+        wget http://info.iet.unipi.it/~luigi/dummynet/ipfw_mod-latest.tgz
+        tar xvzf ipfw_mod-latest.tgz
+
+	# start the compilation
+	rm -rf SOURCES/ipfw*
+	rm -rf BUILD/ipfw-0.1/
+	rm -rf SRPMS/ipfw*
+	rm -rf RPMS/i386/ipfw*
+	make ipfw
+
+ 5. download and install sources into a node
+
+ 5.A Copy RPMS into the node and install it:
+	# exit from the root context
+	exit
+	# copy the resulting rpm file on the target node
+	scp  /vserver/mybuild/build/RPMS/i386/ipfw-* root@node.iet.unipi.it:
+	# log in as root (in root context)
+	ssh root@node.iet.unipi.it
+	# deinstall the old ipfw installation (and remove the module)
+	rpm -e ipfwroot
+	# install the new rpm
+	rpm -ivh ./ipfwroot-0-9...TAB
+	# load the module
+	# modprobe will locate the module for us
+	# insmod need the full path (/lib/modules/*/net/netfilter/ipfw_mod.ko)
+	modprobe ipfw_mod
+
+ 5.B This step is alternative to the previous on, it avoids to install the new
+	rpm file.
+
+	# remove the old module, if present
+	rmmod ipfw_mod
+
+	# copy the resulting rpm file on the target node
+	scp  /vserver/mybuild/build/RPMS/i386/ipfw-* root@node.iet.unipi.it:
+	
+	# log in as root (in root context)
+	ssh root@node.iet.unipi.it
+
+	# convert the rpmfile to a cpio archive and extract files
+	mkdir tmp
+	mv ipfw*.rpm tmp
+	cd tmp
+	rpm2cpio ipfwroot-0...TAB | cpio -id
+	cd ..
+
+	# install the module with insmod (we can not use modprobe now)
+	insmod /tmp/lib/modules/*/net/netfilter/ipfw_mod.ko
+
+--- References
+[1] https://svn.planet-lab.org/wiki/VserverCentos
+[2] http://wiki.linux-vserver.org/Installation_on_CentOS
+[3] http://mirror.centos.org/centos/5/isos/
+[4] More information are in /build/README* files 
